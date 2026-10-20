@@ -40,8 +40,8 @@ online editor is deleted. Run `clasp pull` first if you've edited online.
 ```bash
 git init
 git add .
-git commit -m "Job Matcher"
-git remote add origin https://github.com/<you>/job-matcher.git
+git commit -m "Jerb Matcher"
+git remote add origin https://github.com/<you>/jerb-matcher.git
 git push -u origin main
 ```
 
