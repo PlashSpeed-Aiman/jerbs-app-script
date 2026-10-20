@@ -1,0 +1,6 @@
+{
+  "scriptId": "",
+  "rootDir": "src",
+  "scriptExtensions": [".gs", ".js"],
+  "htmlExtensions": [".html"]
+}

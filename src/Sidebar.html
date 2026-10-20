@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #202124; margin: 12px; }
+    label { display: block; font-weight: bold; margin: 14px 0 4px; }
+    .hint { color: #5f6368; font-size: 12px; margin-top: 3px; }
+    input, select, textarea { width: 100%; box-sizing: border-box; font-size: 13px; padding: 6px;
+      border: 1px solid #dadce0; border-radius: 4px; background: #fff; }
+    textarea { height: 280px; font-family: inherit; resize: vertical; }
+    .row { display: flex; gap: 6px; }
+    .row input { flex: 1; }
+    button { padding: 7px 12px; border-radius: 4px; border: 1px solid #dadce0; background: #fff;
+      cursor: pointer; font-size: 13px; white-space: nowrap; }
+    button.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; margin-top: 16px; width: 100%; }
+    button:disabled { opacity: .6; cursor: default; }
+    #status { margin-top: 10px; min-height: 18px; word-break: break-word; }
+    .ok { color: #188038; } .err { color: #d93025; }
+  </style>
+</head>
+<body>
+  <label for="provider">AI provider</label>
+  <select id="provider"></select>
+
+  <label for="apiKey">API key</label>
+  <input id="apiKey" type="password" autocomplete="off" placeholder="Paste your key">
+  <div class="hint" id="keyHint"></div>
+
+  <label for="model">Model</label>
+  <div class="row">
+    <input id="model" list="models" placeholder="Click Load to see your models">
+    <datalist id="models"></datalist>
+    <button id="loadModels" type="button">Load</button>
+  </div>
+  <div class="hint">"Load" checks the key and lists the models it can use.</div>
+
+  <label for="sourceSheet">Job sheet</label>
+  <select id="sourceSheet"></select>
+
+  <label for="resume">Your resume</label>
+  <textarea id="resume" placeholder="Paste your resume as plain text…"></textarea>
+  <div class="hint">Open your PDF or Word resume, select all, copy and paste here.</div>
+
+  <button class="primary" id="save" type="button">Save settings</button>
+  <div id="status"></div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const status = (msg, cls) => { $('status').textContent = msg; $('status').className = cls || ''; };
+    let providers = [];
+
+    const current = () => providers.find(p => p.id === $('provider').value) || {};
+
+    function showProvider() {
+      const p = current();
+      $('apiKey').value = '';
+      $('keyHint').textContent = p.hasKey
+        ? 'A ' + p.label + ' key is saved. Leave blank to keep it, or paste a new one.'
+        : 'Stored privately in your Google account, not in the sheet.';
+      $('model').value = p.model || '';
+      $('models').innerHTML = '';
+      status('');
+    }
+
+    google.script.run
+      .withSuccessHandler(s => {
+        providers = s.providers;
+        $('provider').innerHTML = providers
+          .map(p => '<option value="' + esc(p.id) + '"' + (p.id === s.providerId ? ' selected' : '') + '>' + esc(p.label) + '</option>')
+          .join('');
+        $('sourceSheet').innerHTML = s.sheetNames
+          .map(n => '<option' + (n === s.sourceSheet ? ' selected' : '') + '>' + esc(n) + '</option>')
+          .join('');
+        $('resume').value = s.resume;
+        showProvider();
+      })
+      .withFailureHandler(e => status(e.message, 'err'))
+      .getSettings();
+
+    $('provider').onchange = showProvider;
+
+    $('loadModels').onclick = () => {
+      $('loadModels').disabled = true;
+      status('Checking key…');
+      google.script.run
+        .withSuccessHandler(ids => {
+          $('loadModels').disabled = false;
+          $('models').innerHTML = ids.map(id => '<option value="' + esc(id) + '">').join('');
+          status('Key works. ' + ids.length + ' models available — click the Model box to pick one.', 'ok');
+        })
+        .withFailureHandler(e => { $('loadModels').disabled = false; status(e.message, 'err'); })
+        .listModels($('provider').value, $('apiKey').value);
+    };
+
+    $('save').onclick = () => {
+      $('save').disabled = true;
+      status('Saving…');
+      const form = {
+        providerId: $('provider').value,
+        apiKey: $('apiKey').value,
+        model: $('model').value,
+        sourceSheet: $('sourceSheet').value,
+        resume: $('resume').value,
+      };
+      google.script.run
+        .withSuccessHandler(msg => {
+          $('save').disabled = false;
+          const p = current();
+          if (form.apiKey.trim()) p.hasKey = true;
+          if (form.model.trim()) p.model = form.model.trim();
+          showProvider();
+          status(msg + ' Using ' + p.label + '. Now run Job Matcher > Analyze new jobs.', 'ok');
+        })
+        .withFailureHandler(e => { $('save').disabled = false; status(e.message, 'err'); })
+        .saveSettings(form);
+    };
+  </script>
+</body>
+</html>

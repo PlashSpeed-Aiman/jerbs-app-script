@@ -1,0 +1,4 @@
+# clasp login credentials: never commit
+.clasprc.json
+node_modules/
+.DS_Store
