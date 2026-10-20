@@ -1,4 +1,4 @@
-# Job Matcher
+# Jerb Matcher
 
 Google Sheets add-on script that checks captured job descriptions against a resume
 using DeepSeek, OpenAI, OpenRouter or Anthropic.
